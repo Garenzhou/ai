@@ -1,0 +1,140 @@
+---
+title: Anthropic to OpenAI Protocol Adapter
+description: Convert Anthropic API requests to OpenAI-compatible format for proxy providers.
+---
+
+# Anthropic to OpenAI Protocol Adapter
+
+The `@ai-sdk/anthropic-to-openai` package enables you to use the AI SDK with providers that support OpenAI-compatible APIs but receive requests in Anthropic format. It acts as a protocol adapter, converting Anthropic API requests to OpenAI-compatible format before sending them to your upstream provider.
+
+## Installation
+
+```bash
+npm install @ai-sdk/anthropic-to-openai
+```
+
+## Usage
+
+```typescript
+import { createAnthropicToOpenAI } from '@ai-sdk/anthropic-to-openai';
+import { generateText } from 'ai';
+
+const provider = createAnthropicToOpenAI({
+  baseURL: 'https://your-proxy-provider.com/v1',
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const model = provider('claude-sonnet-4-20250514');
+
+const result = await generateText({
+  model,
+  messages: [
+    {
+      role: 'user',
+      content: 'Hello, how are you?',
+    },
+  ],
+});
+```
+
+## Configuration
+
+The `createAnthropicToOpenAI` function accepts the following settings:
+
+| Setting | Type | Description |
+|---------|------|-------------|
+| `baseURL` | `string` | The base URL of the OpenAI-compatible upstream provider. |
+| `apiKey` | `string` | Optional API key for authentication. |
+| `headers` | `Record<string, string>` | Optional custom headers to include in requests. |
+| `fetch` | `FetchFunction` | Optional custom fetch implementation. |
+
+## Features
+
+### Request Conversion
+
+The adapter converts Anthropic API requests to OpenAI-compatible format:
+
+- **Messages**: Converts Anthropic message roles and content blocks to OpenAI format
+- **Tools**: Converts Anthropic tool definitions to OpenAI functions format
+- **Thinking**: Converts Anthropic thinking blocks to OpenAI reasoning format
+- **System prompts**: Preserved and sent as system messages
+
+### Response Conversion
+
+The adapter handles both streaming and non-streaming responses, converting OpenAI responses back to the AI SDK format.
+
+### Tool Calling
+
+The adapter supports tool definitions and tool choice options:
+
+```typescript
+const result = await generateText({
+  model,
+  messages: [{ role: 'user', content: 'What is the weather in Tokyo?' }],
+  tools: [
+    {
+      name: 'get_weather',
+      description: 'Get the current weather for a location',
+      parameters: {
+        type: 'object',
+        properties: {
+          location: { type: 'string' },
+        },
+        required: ['location'],
+      },
+    },
+  ],
+});
+```
+
+### Streaming
+
+Streaming is fully supported:
+
+```typescript
+const { text, chunks } = await streamText({
+  model,
+  messages: [{ role: 'user', content: 'Tell me a story' }],
+});
+
+for await (const chunk of chunks) {
+  console.log(chunk.text);
+}
+```
+
+## Example with Vercel AI SDK
+
+```typescript
+import { createAnthropicToOpenAI } from '@ai-sdk/anthropic-to-openai';
+import { generateText, streamText } from 'ai';
+
+const provider = createAnthropicToOpenAI({
+  baseURL: 'https://api.example.com/v1',
+  apiKey: process.env.API_KEY,
+});
+
+// Non-streaming
+const { text } = await generateText({
+  model: provider('claude-sonnet-4-20250514'),
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'Hello!' },
+  ],
+});
+
+// Streaming
+const { text: streamingText } = await streamText({
+  model: provider('claude-sonnet-4-20250514'),
+  messages: [{ role: 'user', content: 'Count to 5' }],
+});
+```
+
+## Use Cases
+
+1. **Protocol Translation**: Connect clients that use Anthropic's API format with providers that only support OpenAI-compatible APIs.
+
+2. **Proxy Services**: Build middleware services that sit between clients and providers.
+
+3. **Testing**: Test Anthropic-format requests against OpenAI-compatible mock servers.
+
+4. **Provider Migration**: Migrate from one provider to another without changing client-side code.
